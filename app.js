@@ -15,9 +15,9 @@ const state = {
     pixels: [],
     layerManager: null,
     historyManager: new HistoryManager(50),
-    // Shape tool state
-    shapeStart: null, // {x, y} of initial click for shape tools
-    shapePreview: [],  // array of pixel indices currently previewed
+    animationManager: null,
+    shapeStart: null,
+    shapePreview: [],
 };
 
 // ---------------------------------------------------------------
@@ -42,6 +42,24 @@ const addLayerBtn = document.getElementById('add-layer-btn');
 const mergeLayerBtn = document.getElementById('merge-layer-btn');
 const flattenBtn = document.getElementById('flatten-btn');
 const deleteLayerBtn = document.getElementById('delete-layer-btn');
+
+// Timeline
+const frameStrip = document.getElementById('frame-strip');
+const frameCounter = document.getElementById('frame-counter');
+const addFrameBtn = document.getElementById('add-frame-btn');
+const dupFrameBtn = document.getElementById('dup-frame-btn');
+const delFrameBtn = document.getElementById('del-frame-btn');
+const prevFrameBtn = document.getElementById('prev-frame-btn');
+const nextFrameBtn = document.getElementById('next-frame-btn');
+const playBtn = document.getElementById('play-btn');
+const fpsInput = document.getElementById('fps-input');
+const onionSkinBtn = document.getElementById('onion-skin-btn');
+
+// File management
+const saveBtn = document.getElementById('save-btn');
+const loadBtn = document.getElementById('load-btn');
+const exportGifBtn = document.getElementById('export-gif-btn');
+const exportSheetBtn = document.getElementById('export-sheet-btn');
 
 // ---------------------------------------------------------------
 //  History helpers
@@ -653,8 +671,224 @@ flattenBtn.addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------
+//  Animation Timeline UI
+// ---------------------------------------------------------------
+
+function saveCurrentFrameToAnimation() {
+    if (state.animationManager) {
+        state.animationManager.setCurrentFrame(state.layerManager.toJSON());
+    }
+}
+
+function switchToFrame(index) {
+    saveCurrentFrameToAnimation();
+    const frameData = state.animationManager.goToFrame(index);
+    if (frameData) {
+        state.layerManager = LayerManager.fromJSON(frameData);
+        state.historyManager.clear();
+        saveHistory();
+        renderCanvas();
+        renderLayerPanel();
+        renderTimeline();
+    }
+}
+
+function renderTimeline() {
+    const am = state.animationManager;
+    if (!am) return;
+
+    frameCounter.textContent = `${am.currentFrameIndex + 1} / ${am.getFrameCount()}`;
+    frameStrip.innerHTML = '';
+
+    const allFrames = am.getAllFrames();
+    allFrames.forEach((frameData, i) => {
+        const thumb = document.createElement('canvas');
+        thumb.className = 'frame-thumb' + (i === am.currentFrameIndex ? ' active' : '');
+        thumb.width = 48;
+        thumb.height = 48;
+
+        // Render composite of this frame
+        const tempLM = LayerManager.fromJSON(frameData);
+        const ctx = thumb.getContext('2d');
+        const size = state.gridSize;
+        const scale = 48 / size;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 48, 48);
+
+        for (let j = 0; j < size * size; j++) {
+            const color = tempLM.getCompositePixel(j);
+            if (color !== '#ffffff') {
+                const row = Math.floor(j / size);
+                const col = j % size;
+                ctx.fillStyle = color;
+                ctx.fillRect(col * scale, row * scale, Math.ceil(scale), Math.ceil(scale));
+            }
+        }
+
+        thumb.addEventListener('click', () => switchToFrame(i));
+        frameStrip.appendChild(thumb);
+    });
+
+    playBtn.textContent = am.playing ? '⏸' : '▶';
+}
+
+function getCompositeFrames() {
+    const am = state.animationManager;
+    saveCurrentFrameToAnimation();
+    const allFrames = am.getAllFrames();
+    return allFrames.map(frameData => {
+        const tempLM = LayerManager.fromJSON(frameData);
+        return tempLM.getCompositeImage();
+    });
+}
+
+// Timeline events
+addFrameBtn.addEventListener('click', () => {
+    saveCurrentFrameToAnimation();
+    state.animationManager.addFrame();
+    const frameData = state.animationManager.getCurrentFrame();
+    state.layerManager = new LayerManager(state.gridSize * state.gridSize);
+    state.animationManager.setCurrentFrame(state.layerManager.toJSON());
+    state.historyManager.clear();
+    saveHistory();
+    renderCanvas();
+    renderLayerPanel();
+    renderTimeline();
+});
+
+dupFrameBtn.addEventListener('click', () => {
+    saveCurrentFrameToAnimation();
+    state.animationManager.duplicateFrame();
+    const frameData = state.animationManager.getCurrentFrame();
+    state.layerManager = LayerManager.fromJSON(frameData);
+    state.historyManager.clear();
+    saveHistory();
+    renderCanvas();
+    renderLayerPanel();
+    renderTimeline();
+});
+
+delFrameBtn.addEventListener('click', () => {
+    const am = state.animationManager;
+    if (am.getFrameCount() <= 1) return;
+    am.deleteFrame(am.currentFrameIndex);
+    const frameData = am.getCurrentFrame();
+    state.layerManager = LayerManager.fromJSON(frameData);
+    state.historyManager.clear();
+    saveHistory();
+    renderCanvas();
+    renderLayerPanel();
+    renderTimeline();
+});
+
+prevFrameBtn.addEventListener('click', () => {
+    const am = state.animationManager;
+    if (am.currentFrameIndex > 0) switchToFrame(am.currentFrameIndex - 1);
+});
+
+nextFrameBtn.addEventListener('click', () => {
+    const am = state.animationManager;
+    if (am.currentFrameIndex < am.getFrameCount() - 1) switchToFrame(am.currentFrameIndex + 1);
+});
+
+playBtn.addEventListener('click', () => {
+    const am = state.animationManager;
+    if (am.playing) {
+        am.stop();
+        renderTimeline();
+    } else {
+        saveCurrentFrameToAnimation();
+        am.play((frameData, frameIndex) => {
+            state.layerManager = LayerManager.fromJSON(frameData);
+            renderCanvas();
+            renderTimeline();
+        });
+        renderTimeline();
+    }
+});
+
+fpsInput.addEventListener('change', () => {
+    state.animationManager.setFps(parseInt(fpsInput.value) || 8);
+});
+
+onionSkinBtn.addEventListener('click', () => {
+    const am = state.animationManager;
+    am.onionSkinEnabled = !am.onionSkinEnabled;
+    onionSkinBtn.classList.toggle('active', am.onionSkinEnabled);
+});
+
+// ---------------------------------------------------------------
+//  File Management Events
+// ---------------------------------------------------------------
+
+saveBtn.addEventListener('click', () => {
+    saveCurrentFrameToAnimation();
+    FileManager.saveProject({
+        gridSize: state.gridSize,
+        layers: state.layerManager.toJSON(),
+        animation: state.animationManager.toJSON(),
+    });
+});
+
+loadBtn.addEventListener('click', () => {
+    FileManager.loadProject((data) => {
+        if (!data) return;
+        state.gridSize = data.gridSize;
+        gridSizeSelect.value = String(data.gridSize);
+        state.layerManager = LayerManager.fromJSON(data.layers);
+        if (data.animation) {
+            state.animationManager = AnimationManager.fromJSON(data.animation);
+        } else {
+            state.animationManager = new AnimationManager(data.gridSize);
+            state.animationManager.setCurrentFrame(state.layerManager.toJSON());
+        }
+        state.historyManager.clear();
+
+        // Rebuild canvas DOM
+        const size = state.gridSize;
+        const maxCanvasWidth = Math.min(560, window.innerWidth - 40);
+        const cellSize = Math.floor(maxCanvasWidth / size);
+        canvas.innerHTML = '';
+        canvas.style.gridTemplateColumns = `repeat(${size}, ${cellSize}px)`;
+        canvas.style.gridTemplateRows = `repeat(${size}, ${cellSize}px)`;
+        state.pixels = [];
+        for (let i = 0; i < size * size; i++) {
+            const pixel = document.createElement('div');
+            pixel.className = 'pixel';
+            pixel.dataset.index = i;
+            canvas.appendChild(pixel);
+            state.pixels.push(pixel);
+        }
+
+        saveHistory();
+        renderCanvas();
+        renderLayerPanel();
+        renderTimeline();
+    });
+});
+
+exportGifBtn.addEventListener('click', () => {
+    const frames = getCompositeFrames();
+    if (frames.length === 0) return;
+    FileManager.exportGIF(frames, state.gridSize, state.animationManager.fps);
+});
+
+exportSheetBtn.addEventListener('click', () => {
+    const frames = getCompositeFrames();
+    if (frames.length === 0) return;
+    const columns = Math.min(frames.length, 8);
+    FileManager.exportSpriteSheet(frames, state.gridSize, columns);
+});
+
+// ---------------------------------------------------------------
 //  Init
 // ---------------------------------------------------------------
 
 initPalette();
 createCanvas();
+
+// Initialize animation manager
+state.animationManager = new AnimationManager(state.gridSize);
+state.animationManager.setCurrentFrame(state.layerManager.toJSON());
+renderTimeline();

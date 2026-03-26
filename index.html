@@ -63,12 +63,38 @@
 
             <div class="tool-group actions">
                 <button id="clear-btn" class="action-btn danger">초기화</button>
-                <button id="export-btn" class="action-btn primary">PNG 저장</button>
+                <button id="save-btn" class="action-btn primary">프로젝트 저장</button>
+                <button id="load-btn" class="action-btn primary">불러오기</button>
+                <button id="export-btn" class="action-btn primary">PNG</button>
+                <button id="export-gif-btn" class="action-btn primary">GIF</button>
+                <button id="export-sheet-btn" class="action-btn primary">스프라이트</button>
             </div>
         </div>
 
         <div class="canvas-wrapper">
             <div class="canvas" id="canvas"></div>
+        </div>
+
+        <div class="timeline-panel" id="timeline-panel">
+            <div class="timeline-header">
+                <h3>애니메이션</h3>
+                <div class="timeline-controls">
+                    <button id="onion-skin-btn" class="layer-action-btn" title="어니언 스킨">🧅</button>
+                    <label class="fps-label">FPS:
+                        <input type="number" id="fps-input" min="1" max="60" value="8" class="fps-input">
+                    </label>
+                </div>
+            </div>
+            <div class="timeline-playback">
+                <button id="prev-frame-btn" class="layer-action-btn" title="이전 프레임">◀</button>
+                <button id="play-btn" class="layer-action-btn" title="재생/정지">▶</button>
+                <button id="next-frame-btn" class="layer-action-btn" title="다음 프레임">▶</button>
+                <span id="frame-counter" class="frame-counter">1 / 1</span>
+                <button id="add-frame-btn" class="layer-action-btn" title="프레임 추가">+</button>
+                <button id="dup-frame-btn" class="layer-action-btn" title="프레임 복제">⧉</button>
+                <button id="del-frame-btn" class="layer-action-btn" title="프레임 삭제">✕</button>
+            </div>
+            <div class="frame-strip" id="frame-strip"></div>
         </div>
 
         <div class="layer-panel" id="layer-panel">
@@ -88,6 +114,8 @@
     <script src="layers.js"></script>
     <script src="history.js"></script>
     <script src="tools.js"></script>
+    <script src="animation.js"></script>
+    <script src="filemanager.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
