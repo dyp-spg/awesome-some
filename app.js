@@ -11,9 +11,18 @@ const state = {
     gridSize: 16,
     showGrid: true,
     painting: false,
+    shapeFilled: false,
     pixels: [],
     layerManager: null,
+    historyManager: new HistoryManager(50),
+    // Shape tool state
+    shapeStart: null, // {x, y} of initial click for shape tools
+    shapePreview: [],  // array of pixel indices currently previewed
 };
+
+// ---------------------------------------------------------------
+//  DOM references
+// ---------------------------------------------------------------
 
 const canvas = document.getElementById('canvas');
 const colorPicker = document.getElementById('color-picker');
@@ -23,13 +32,50 @@ const toggleGridBtn = document.getElementById('toggle-grid');
 const clearBtn = document.getElementById('clear-btn');
 const exportBtn = document.getElementById('export-btn');
 const toolButtons = document.querySelectorAll('[data-tool]');
+const undoBtn = document.getElementById('undo-btn');
+const redoBtn = document.getElementById('redo-btn');
+const shapeFillToggle = document.getElementById('shape-fill-toggle');
 
-// Layer panel elements
+// Layer panel
 const layerList = document.getElementById('layer-list');
 const addLayerBtn = document.getElementById('add-layer-btn');
 const mergeLayerBtn = document.getElementById('merge-layer-btn');
 const flattenBtn = document.getElementById('flatten-btn');
 const deleteLayerBtn = document.getElementById('delete-layer-btn');
+
+// ---------------------------------------------------------------
+//  History helpers
+// ---------------------------------------------------------------
+
+function saveHistory() {
+    state.historyManager.pushState(state.layerManager);
+    updateUndoRedoButtons();
+}
+
+function performUndo() {
+    const snapshot = state.historyManager.undo();
+    if (snapshot) {
+        state.layerManager = LayerManager.fromJSON(snapshot);
+        renderCanvas();
+        renderLayerPanel();
+        updateUndoRedoButtons();
+    }
+}
+
+function performRedo() {
+    const snapshot = state.historyManager.redo();
+    if (snapshot) {
+        state.layerManager = LayerManager.fromJSON(snapshot);
+        renderCanvas();
+        renderLayerPanel();
+        updateUndoRedoButtons();
+    }
+}
+
+function updateUndoRedoButtons() {
+    undoBtn.style.opacity = state.historyManager.canUndo() ? '1' : '0.4';
+    redoBtn.style.opacity = state.historyManager.canRedo() ? '1' : '0.4';
+}
 
 // ---------------------------------------------------------------
 //  Palette
@@ -73,7 +119,6 @@ function createCanvas() {
 
     state.pixels = [];
 
-    // Create or resize the layer manager
     if (!state.layerManager) {
         state.layerManager = new LayerManager(size * size);
     } else {
@@ -88,6 +133,8 @@ function createCanvas() {
         state.pixels.push(pixel);
     }
 
+    state.historyManager.clear();
+    saveHistory();
     renderCanvas();
     renderLayerPanel();
 }
@@ -98,6 +145,76 @@ function renderCanvas() {
     for (let i = 0; i < state.pixels.length; i++) {
         state.pixels[i].style.backgroundColor = lm.getCompositePixel(i);
     }
+}
+
+function renderPixel(index) {
+    state.pixels[index].style.backgroundColor = state.layerManager.getCompositePixel(index);
+}
+
+// ---------------------------------------------------------------
+//  Shape tool helpers
+// ---------------------------------------------------------------
+
+function isShapeTool(tool) {
+    return tool === 'line' || tool === 'rect' || tool === 'circle';
+}
+
+function getShapePixels(startCoord, endCoord) {
+    const { x: x0, y: y0 } = startCoord;
+    const { x: x1, y: y1 } = endCoord;
+    const size = state.gridSize;
+
+    if (state.tool === 'line') {
+        return DrawingTools.line(x0, y0, x1, y1);
+    } else if (state.tool === 'rect') {
+        return DrawingTools.rectangle(x0, y0, x1, y1, state.shapeFilled);
+    } else if (state.tool === 'circle') {
+        const cx = Math.round((x0 + x1) / 2);
+        const cy = Math.round((y0 + y1) / 2);
+        const radius = Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2);
+        return DrawingTools.circle(cx, cy, radius, state.shapeFilled);
+    }
+    return [];
+}
+
+function clearShapePreview() {
+    state.shapePreview.forEach(idx => renderPixel(idx));
+    state.shapePreview = [];
+}
+
+function showShapePreview(startCoord, endCoord) {
+    clearShapePreview();
+    const coords = getShapePixels(startCoord, endCoord);
+    const size = state.gridSize;
+
+    coords.forEach(({ x, y }) => {
+        const idx = DrawingTools.coordToIndex(x, y, size);
+        if (idx >= 0 && idx < state.pixels.length) {
+            state.pixels[idx].style.backgroundColor = state.color;
+            state.shapePreview.push(idx);
+        }
+    });
+}
+
+function commitShape(startCoord, endCoord) {
+    clearShapePreview();
+    const lm = state.layerManager;
+    const activeLayer = lm.getActiveLayer();
+    if (!activeLayer || activeLayer.locked) return;
+
+    const coords = getShapePixels(startCoord, endCoord);
+    const size = state.gridSize;
+
+    coords.forEach(({ x, y }) => {
+        const idx = DrawingTools.coordToIndex(x, y, size);
+        if (idx >= 0) {
+            lm.setPixel(idx, state.color);
+        }
+    });
+
+    renderCanvas();
+    saveHistory();
+    renderLayerPanel();
 }
 
 // ---------------------------------------------------------------
@@ -116,11 +233,16 @@ function paint(pixel) {
         renderPixel(idx);
     } else if (state.tool === 'fill') {
         floodFill(idx);
+        saveHistory();
+        renderLayerPanel();
+    } else if (state.tool === 'eyedropper') {
+        const sampledColor = DrawingTools.eyedropper(idx, lm);
+        if (sampledColor) {
+            state.color = sampledColor;
+            colorPicker.value = sampledColor;
+            updatePaletteActive();
+        }
     }
-}
-
-function renderPixel(index) {
-    state.pixels[index].style.backgroundColor = state.layerManager.getCompositePixel(index);
 }
 
 function floodFill(startIndex) {
@@ -128,9 +250,8 @@ function floodFill(startIndex) {
     const activeLayer = lm.getActiveLayer();
     if (!activeLayer || activeLayer.locked) return;
 
-    const targetColor = activeLayer.data[startIndex]; // null or hex
+    const targetColor = activeLayer.data[startIndex];
     const fillColor = state.color;
-
     if (targetColor === fillColor) return;
 
     const size = state.gridSize;
@@ -142,7 +263,6 @@ function floodFill(startIndex) {
         const idx = stack.pop();
         if (visited.has(idx)) continue;
         if (idx < 0 || idx >= total) continue;
-
         if (activeLayer.data[idx] !== targetColor) continue;
 
         visited.add(idx);
@@ -165,6 +285,9 @@ function setTool(tool) {
     toolButtons.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tool === tool);
     });
+    // Reset shape state
+    state.shapeStart = null;
+    clearShapePreview();
 }
 
 // ---------------------------------------------------------------
@@ -176,8 +299,6 @@ function renderLayerPanel() {
     if (!lm) return;
 
     layerList.innerHTML = '';
-
-    // Render layers top-to-bottom (reverse order since top layer = last in array)
     const layers = [...lm.layers].reverse();
 
     layers.forEach(layer => {
@@ -190,14 +311,12 @@ function renderLayerPanel() {
             renderLayerPanel();
         });
 
-        // Thumbnail
         const thumb = document.createElement('canvas');
         thumb.className = 'layer-thumbnail';
         thumb.width = 32;
         thumb.height = 32;
         renderLayerThumbnail(thumb, layer);
 
-        // Visibility toggle
         const visBtn = document.createElement('button');
         visBtn.className = 'layer-visibility' + (layer.visible ? '' : ' hidden');
         visBtn.textContent = layer.visible ? '👁' : '—';
@@ -208,7 +327,6 @@ function renderLayerPanel() {
             renderLayerPanel();
         });
 
-        // Name input
         const nameInput = document.createElement('input');
         nameInput.className = 'layer-name';
         nameInput.type = 'text';
@@ -219,12 +337,10 @@ function renderLayerPanel() {
         nameInput.addEventListener('click', () => {
             lm.setActiveLayer(layer.id);
             renderLayerPanel();
-            // Re-focus the input after re-render
-            const newInput = layerList.querySelector(`.layer-item.active .layer-name`);
+            const newInput = layerList.querySelector('.layer-item.active .layer-name');
             if (newInput) newInput.focus();
         });
 
-        // Opacity slider
         const opacitySlider = document.createElement('input');
         opacitySlider.className = 'layer-opacity';
         opacitySlider.type = 'range';
@@ -238,7 +354,6 @@ function renderLayerPanel() {
             renderCanvas();
         });
 
-        // Lock button
         const lockBtn = document.createElement('button');
         lockBtn.className = 'layer-lock' + (layer.locked ? ' locked' : '');
         lockBtn.textContent = layer.locked ? '🔒' : '🔓';
@@ -303,35 +418,77 @@ function exportAsPNG() {
 }
 
 // ---------------------------------------------------------------
-//  Event Listeners — Canvas
+//  Event Listeners — Canvas (mouse)
 // ---------------------------------------------------------------
 
+function getPixelIndex(target) {
+    return target.classList.contains('pixel') ? parseInt(target.dataset.index) : -1;
+}
+
 canvas.addEventListener('mousedown', (e) => {
-    if (e.target.classList.contains('pixel')) {
+    const idx = getPixelIndex(e.target);
+    if (idx < 0) return;
+
+    if (isShapeTool(state.tool)) {
+        state.shapeStart = DrawingTools.indexToCoord(idx, state.gridSize);
+        state.painting = true;
+    } else {
         state.painting = true;
         paint(e.target);
     }
 });
 
 canvas.addEventListener('mousemove', (e) => {
-    if (state.painting && state.tool !== 'fill' && e.target.classList.contains('pixel')) {
+    if (!state.painting) return;
+    const idx = getPixelIndex(e.target);
+    if (idx < 0) return;
+
+    if (isShapeTool(state.tool) && state.shapeStart) {
+        const endCoord = DrawingTools.indexToCoord(idx, state.gridSize);
+        showShapePreview(state.shapeStart, endCoord);
+    } else if (state.tool !== 'fill' && state.tool !== 'eyedropper') {
         paint(e.target);
     }
 });
 
-document.addEventListener('mouseup', () => {
-    if (state.painting) {
-        state.painting = false;
-        renderLayerPanel(); // Update thumbnails after stroke
+document.addEventListener('mouseup', (e) => {
+    if (!state.painting) return;
+
+    if (isShapeTool(state.tool) && state.shapeStart) {
+        const target = document.elementFromPoint(e.clientX, e.clientY);
+        let idx = target ? getPixelIndex(target) : -1;
+        if (idx < 0) {
+            // If released outside canvas, use last known position from preview
+            clearShapePreview();
+        } else {
+            const endCoord = DrawingTools.indexToCoord(idx, state.gridSize);
+            commitShape(state.shapeStart, endCoord);
+        }
+        state.shapeStart = null;
+    } else if (state.tool === 'brush' || state.tool === 'eraser') {
+        saveHistory();
+        renderLayerPanel();
     }
+
+    state.painting = false;
 });
 
-// Touch support
+// ---------------------------------------------------------------
+//  Event Listeners — Canvas (touch)
+// ---------------------------------------------------------------
+
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     const touch = e.touches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (target && target.classList.contains('pixel')) {
+    if (!target) return;
+    const idx = getPixelIndex(target);
+    if (idx < 0) return;
+
+    if (isShapeTool(state.tool)) {
+        state.shapeStart = DrawingTools.indexToCoord(idx, state.gridSize);
+        state.painting = true;
+    } else {
         state.painting = true;
         paint(target);
     }
@@ -339,17 +496,52 @@ canvas.addEventListener('touchstart', (e) => {
 
 canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
-    if (!state.painting || state.tool === 'fill') return;
+    if (!state.painting) return;
     const touch = e.touches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (target && target.classList.contains('pixel')) {
+    if (!target) return;
+    const idx = getPixelIndex(target);
+    if (idx < 0) return;
+
+    if (isShapeTool(state.tool) && state.shapeStart) {
+        const endCoord = DrawingTools.indexToCoord(idx, state.gridSize);
+        showShapePreview(state.shapeStart, endCoord);
+    } else if (state.tool !== 'fill' && state.tool !== 'eyedropper') {
         paint(target);
     }
 });
 
-canvas.addEventListener('touchend', () => {
+canvas.addEventListener('touchend', (e) => {
+    if (!state.painting) return;
+
+    if (isShapeTool(state.tool) && state.shapeStart) {
+        // Commit with last preview position
+        if (state.shapePreview.length > 0) {
+            // Re-derive end from last preview - just commit current preview pixels
+            const lm = state.layerManager;
+            const activeLayer = lm.getActiveLayer();
+            if (activeLayer && !activeLayer.locked) {
+                clearShapePreview();
+                // We need to re-apply since clearShapePreview reverted
+                // Use touch end position
+                const touch = e.changedTouches[0];
+                const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (target) {
+                    const idx = getPixelIndex(target);
+                    if (idx >= 0) {
+                        const endCoord = DrawingTools.indexToCoord(idx, state.gridSize);
+                        commitShape(state.shapeStart, endCoord);
+                    }
+                }
+            }
+        }
+        state.shapeStart = null;
+    } else if (state.tool === 'brush' || state.tool === 'eraser') {
+        saveHistory();
+        renderLayerPanel();
+    }
+
     state.painting = false;
-    renderLayerPanel();
 });
 
 // ---------------------------------------------------------------
@@ -383,6 +575,7 @@ clearBtn.addEventListener('click', () => {
         if (layer && !layer.locked) {
             layer.data.fill(null);
             renderCanvas();
+            saveHistory();
             renderLayerPanel();
         }
     }
@@ -390,12 +583,37 @@ clearBtn.addEventListener('click', () => {
 
 exportBtn.addEventListener('click', exportAsPNG);
 
+// Undo/Redo buttons
+undoBtn.addEventListener('click', performUndo);
+redoBtn.addEventListener('click', performRedo);
+
+// Shape fill toggle
+shapeFillToggle.addEventListener('click', () => {
+    state.shapeFilled = !state.shapeFilled;
+    shapeFillToggle.textContent = state.shapeFilled ? '■' : '☐';
+    shapeFillToggle.classList.toggle('active', state.shapeFilled);
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        performUndo();
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        performRedo();
+    }
+});
+
 // ---------------------------------------------------------------
 //  Event Listeners — Layer Panel
 // ---------------------------------------------------------------
 
 addLayerBtn.addEventListener('click', () => {
     state.layerManager.addLayer();
+    saveHistory();
     renderCanvas();
     renderLayerPanel();
 });
@@ -408,6 +626,7 @@ deleteLayerBtn.addEventListener('click', () => {
     }
     if (confirm('현재 레이어를 삭제하시겠습니까?')) {
         lm.removeLayer(lm.activeLayerId);
+        saveHistory();
         renderCanvas();
         renderLayerPanel();
     }
@@ -419,6 +638,7 @@ mergeLayerBtn.addEventListener('click', () => {
         alert('아래 레이어와 병합할 수 없습니다.');
         return;
     }
+    saveHistory();
     renderCanvas();
     renderLayerPanel();
 });
@@ -426,6 +646,7 @@ mergeLayerBtn.addEventListener('click', () => {
 flattenBtn.addEventListener('click', () => {
     if (confirm('모든 레이어를 하나로 병합하시겠습니까?')) {
         state.layerManager.flattenAll();
+        saveHistory();
         renderCanvas();
         renderLayerPanel();
     }

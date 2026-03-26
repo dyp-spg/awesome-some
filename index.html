@@ -26,6 +26,10 @@
                     <button class="tool-btn active" data-tool="brush" title="브러시">&#9998;</button>
                     <button class="tool-btn" data-tool="eraser" title="지우개">&#9003;</button>
                     <button class="tool-btn" data-tool="fill" title="채우기">&#9681;</button>
+                    <button class="tool-btn" data-tool="line" title="직선">╲</button>
+                    <button class="tool-btn" data-tool="rect" title="사각형">▭</button>
+                    <button class="tool-btn" data-tool="circle" title="원">◯</button>
+                    <button class="tool-btn" data-tool="eyedropper" title="스포이드">💉</button>
                 </div>
             </div>
 
@@ -42,6 +46,19 @@
             <div class="tool-group">
                 <label>격자선</label>
                 <button id="toggle-grid" class="tool-btn active" title="격자선 토글">&#9638;</button>
+            </div>
+
+            <div class="tool-group">
+                <label>실행취소</label>
+                <div class="tool-buttons">
+                    <button id="undo-btn" class="tool-btn" title="실행 취소 (Ctrl+Z)">↩</button>
+                    <button id="redo-btn" class="tool-btn" title="다시 실행 (Ctrl+Y)">↪</button>
+                </div>
+            </div>
+
+            <div class="tool-group">
+                <label>도형 옵션</label>
+                <button id="shape-fill-toggle" class="tool-btn" title="채움/윤곽">☐</button>
             </div>
 
             <div class="tool-group actions">
@@ -69,6 +86,8 @@
     </div>
 
     <script src="layers.js"></script>
+    <script src="history.js"></script>
+    <script src="tools.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
