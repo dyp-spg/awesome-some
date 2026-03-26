@@ -30,7 +30,21 @@
                     <button class="tool-btn" data-tool="rect" title="사각형">▭</button>
                     <button class="tool-btn" data-tool="circle" title="원">◯</button>
                     <button class="tool-btn" data-tool="eyedropper" title="스포이드">💉</button>
+                    <button class="tool-btn" data-tool="select" title="선택">⬚</button>
                 </div>
+            </div>
+
+            <div class="tool-group">
+                <label>대칭</label>
+                <select id="symmetry-mode">
+                    <option value="none">없음</option>
+                    <option value="horizontal">좌우</option>
+                    <option value="vertical">상하</option>
+                    <option value="both">4방향</option>
+                    <option value="radial4">회전 4</option>
+                    <option value="radial6">회전 6</option>
+                    <option value="radial8">회전 8</option>
+                </select>
             </div>
 
             <div class="tool-group">
@@ -97,6 +111,29 @@
             <div class="frame-strip" id="frame-strip"></div>
         </div>
 
+        <div class="color-tools-panel" id="color-tools-panel">
+            <div class="layer-panel-header">
+                <h3>색상 도구</h3>
+            </div>
+            <div class="color-tools-row">
+                <div class="color-harmony" id="color-harmony"></div>
+                <div class="color-gradient" id="color-gradient"></div>
+            </div>
+            <div class="color-history-row">
+                <label class="fps-label">최근 사용</label>
+                <div class="color-history" id="color-history"></div>
+            </div>
+        </div>
+
+        <div class="selection-bar" id="selection-bar" style="display:none;">
+            <button id="sel-copy" class="layer-action-btn" title="복사">📋</button>
+            <button id="sel-cut" class="layer-action-btn" title="잘라내기">✂</button>
+            <button id="sel-paste" class="layer-action-btn" title="붙여넣기">📌</button>
+            <button id="sel-deselect" class="layer-action-btn" title="선택 해제">✕</button>
+            <button id="sel-flip-h" class="layer-action-btn" title="좌우 반전">↔</button>
+            <button id="sel-flip-v" class="layer-action-btn" title="상하 반전">↕</button>
+        </div>
+
         <div class="layer-panel" id="layer-panel">
             <div class="layer-panel-header">
                 <h3>레이어</h3>
@@ -114,6 +151,9 @@
     <script src="layers.js"></script>
     <script src="history.js"></script>
     <script src="tools.js"></script>
+    <script src="colortools.js"></script>
+    <script src="selection.js"></script>
+    <script src="symmetry.js"></script>
     <script src="animation.js"></script>
     <script src="filemanager.js"></script>
     <script src="app.js"></script>

@@ -12,12 +12,16 @@ const state = {
     showGrid: true,
     painting: false,
     shapeFilled: false,
+    symmetryMode: 'none',
     pixels: [],
     layerManager: null,
     historyManager: new HistoryManager(50),
     animationManager: null,
+    selectionManager: null,
+    colorHistory: new ColorHistory(),
     shapeStart: null,
     shapePreview: [],
+    selectStart: null,
 };
 
 // ---------------------------------------------------------------
@@ -60,6 +64,23 @@ const saveBtn = document.getElementById('save-btn');
 const loadBtn = document.getElementById('load-btn');
 const exportGifBtn = document.getElementById('export-gif-btn');
 const exportSheetBtn = document.getElementById('export-sheet-btn');
+
+// Color tools
+const colorHarmony = document.getElementById('color-harmony');
+const colorGradient = document.getElementById('color-gradient');
+const colorHistoryEl = document.getElementById('color-history');
+
+// Selection
+const selectionBar = document.getElementById('selection-bar');
+const selCopy = document.getElementById('sel-copy');
+const selCut = document.getElementById('sel-cut');
+const selPaste = document.getElementById('sel-paste');
+const selDeselect = document.getElementById('sel-deselect');
+const selFlipH = document.getElementById('sel-flip-h');
+const selFlipV = document.getElementById('sel-flip-v');
+
+// Symmetry
+const symmetryMode = document.getElementById('symmetry-mode');
 
 // ---------------------------------------------------------------
 //  History helpers
@@ -109,6 +130,7 @@ function initPalette() {
             state.color = color;
             colorPicker.value = color;
             updatePaletteActive();
+            updateColorTools();
             if (state.tool === 'eraser') setTool('brush');
         });
         palette.appendChild(el);
@@ -239,16 +261,37 @@ function commitShape(startCoord, endCoord) {
 //  Drawing
 // ---------------------------------------------------------------
 
+function getSymmetryPoints(idx) {
+    const size = state.gridSize;
+    const coord = DrawingTools.indexToCoord(idx, size);
+    if (!coord) return [idx];
+
+    let points;
+    switch (state.symmetryMode) {
+        case 'horizontal': points = SymmetryTool.mirrorHorizontal(coord.x, coord.y, size); break;
+        case 'vertical': points = SymmetryTool.mirrorVertical(coord.x, coord.y, size); break;
+        case 'both': points = SymmetryTool.mirrorBoth(coord.x, coord.y, size); break;
+        case 'radial4': points = SymmetryTool.radial(coord.x, coord.y, size, 4); break;
+        case 'radial6': points = SymmetryTool.radial(coord.x, coord.y, size, 6); break;
+        case 'radial8': points = SymmetryTool.radial(coord.x, coord.y, size, 8); break;
+        default: return [idx];
+    }
+
+    return points
+        .map(p => DrawingTools.coordToIndex(p.x, p.y, size))
+        .filter(i => i >= 0);
+}
+
 function paint(pixel) {
     const lm = state.layerManager;
     const idx = parseInt(pixel.dataset.index);
 
     if (state.tool === 'brush') {
-        lm.setPixel(idx, state.color);
-        renderPixel(idx);
+        const indices = getSymmetryPoints(idx);
+        indices.forEach(i => { lm.setPixel(i, state.color); renderPixel(i); });
     } else if (state.tool === 'eraser') {
-        lm.setPixel(idx, null);
-        renderPixel(idx);
+        const indices = getSymmetryPoints(idx);
+        indices.forEach(i => { lm.setPixel(i, null); renderPixel(i); });
     } else if (state.tool === 'fill') {
         floodFill(idx);
         saveHistory();
@@ -259,6 +302,7 @@ function paint(pixel) {
             state.color = sampledColor;
             colorPicker.value = sampledColor;
             updatePaletteActive();
+            updateColorTools();
         }
     }
 }
@@ -447,7 +491,10 @@ canvas.addEventListener('mousedown', (e) => {
     const idx = getPixelIndex(e.target);
     if (idx < 0) return;
 
-    if (isShapeTool(state.tool)) {
+    if (state.tool === 'select') {
+        state.selectStart = DrawingTools.indexToCoord(idx, state.gridSize);
+        state.painting = true;
+    } else if (isShapeTool(state.tool)) {
         state.shapeStart = DrawingTools.indexToCoord(idx, state.gridSize);
         state.painting = true;
     } else {
@@ -461,7 +508,12 @@ canvas.addEventListener('mousemove', (e) => {
     const idx = getPixelIndex(e.target);
     if (idx < 0) return;
 
-    if (isShapeTool(state.tool) && state.shapeStart) {
+    if (state.tool === 'select' && state.selectStart) {
+        // Preview selection rect
+        const endCoord = DrawingTools.indexToCoord(idx, state.gridSize);
+        state.selectionManager.selectRect(state.selectStart.x, state.selectStart.y, endCoord.x, endCoord.y);
+        updateSelectionVisuals();
+    } else if (isShapeTool(state.tool) && state.shapeStart) {
         const endCoord = DrawingTools.indexToCoord(idx, state.gridSize);
         showShapePreview(state.shapeStart, endCoord);
     } else if (state.tool !== 'fill' && state.tool !== 'eyedropper') {
@@ -471,6 +523,19 @@ canvas.addEventListener('mousemove', (e) => {
 
 document.addEventListener('mouseup', (e) => {
     if (!state.painting) return;
+
+    if (state.tool === 'select' && state.selectStart) {
+        const target = document.elementFromPoint(e.clientX, e.clientY);
+        const idx = target ? getPixelIndex(target) : -1;
+        if (idx >= 0) {
+            const endCoord = DrawingTools.indexToCoord(idx, state.gridSize);
+            state.selectionManager.selectRect(state.selectStart.x, state.selectStart.y, endCoord.x, endCoord.y);
+            updateSelectionVisuals();
+        }
+        state.selectStart = null;
+        state.painting = false;
+        return;
+    }
 
     if (isShapeTool(state.tool) && state.shapeStart) {
         const target = document.elementFromPoint(e.clientX, e.clientY);
@@ -569,6 +634,7 @@ canvas.addEventListener('touchend', (e) => {
 colorPicker.addEventListener('input', (e) => {
     state.color = e.target.value;
     updatePaletteActive();
+    updateColorTools();
     if (state.tool === 'eraser') setTool('brush');
 });
 
@@ -882,13 +948,127 @@ exportSheetBtn.addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------
+//  Color Tools UI
+// ---------------------------------------------------------------
+
+function updateColorTools() {
+    // Harmony
+    const harmonies = ColorTools.analogous(state.color);
+    const complements = ColorTools.complementary(state.color);
+    const allHarmony = [...harmonies, ...complements.slice(1)];
+
+    colorHarmony.innerHTML = '';
+    allHarmony.forEach(hex => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch';
+        swatch.style.background = hex;
+        swatch.addEventListener('click', () => pickColor(hex));
+        colorHarmony.appendChild(swatch);
+    });
+
+    // Gradient
+    const grad = ColorTools.gradient(state.color, complements[1] || '#ffffff', 8);
+    colorGradient.innerHTML = '';
+    grad.forEach(hex => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch';
+        swatch.style.background = hex;
+        swatch.addEventListener('click', () => pickColor(hex));
+        colorGradient.appendChild(swatch);
+    });
+
+    // History
+    state.colorHistory.add(state.color);
+    renderColorHistory();
+}
+
+function renderColorHistory() {
+    colorHistoryEl.innerHTML = '';
+    state.colorHistory.getAll().forEach(hex => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch';
+        swatch.style.background = hex;
+        swatch.addEventListener('click', () => pickColor(hex));
+        colorHistoryEl.appendChild(swatch);
+    });
+}
+
+function pickColor(hex) {
+    state.color = hex;
+    colorPicker.value = hex;
+    updatePaletteActive();
+    updateColorTools();
+    if (state.tool === 'eraser') setTool('brush');
+}
+
+// ---------------------------------------------------------------
+//  Selection Tool Events
+// ---------------------------------------------------------------
+
+function updateSelectionVisuals() {
+    const sm = state.selectionManager;
+    state.pixels.forEach((pixel, i) => {
+        pixel.classList.toggle('selected', sm.isSelected(i));
+    });
+    selectionBar.style.display = sm.getSelectedIndices().length > 0 ? 'flex' : 'none';
+}
+
+selCopy.addEventListener('click', () => {
+    state.selectionManager.copy(state.layerManager);
+});
+
+selCut.addEventListener('click', () => {
+    state.selectionManager.cut(state.layerManager);
+    saveHistory();
+    renderCanvas();
+    renderLayerPanel();
+    updateSelectionVisuals();
+});
+
+selPaste.addEventListener('click', () => {
+    state.selectionManager.paste(state.layerManager, 0, 0);
+    saveHistory();
+    renderCanvas();
+    renderLayerPanel();
+});
+
+selDeselect.addEventListener('click', () => {
+    state.selectionManager.deselect();
+    updateSelectionVisuals();
+});
+
+selFlipH.addEventListener('click', () => {
+    state.selectionManager.flipHorizontal(state.layerManager);
+    saveHistory();
+    renderCanvas();
+    renderLayerPanel();
+});
+
+selFlipV.addEventListener('click', () => {
+    state.selectionManager.flipVertical(state.layerManager);
+    saveHistory();
+    renderCanvas();
+    renderLayerPanel();
+});
+
+// ---------------------------------------------------------------
+//  Symmetry Mode
+// ---------------------------------------------------------------
+
+symmetryMode.addEventListener('change', () => {
+    state.symmetryMode = symmetryMode.value;
+});
+
+// ---------------------------------------------------------------
 //  Init
 // ---------------------------------------------------------------
 
 initPalette();
 createCanvas();
 
-// Initialize animation manager
+// Initialize managers
 state.animationManager = new AnimationManager(state.gridSize);
 state.animationManager.setCurrentFrame(state.layerManager.toJSON());
+state.selectionManager = new SelectionManager(state.gridSize);
 renderTimeline();
+updateColorTools();
