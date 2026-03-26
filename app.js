@@ -82,6 +82,18 @@ const selFlipV = document.getElementById('sel-flip-v');
 // Symmetry
 const symmetryMode = document.getElementById('symmetry-mode');
 
+// Theme & Zoom
+const themeSelect = document.getElementById('theme-select');
+const zoomInBtn = document.getElementById('zoom-in-btn');
+const zoomOutBtn = document.getElementById('zoom-out-btn');
+const zoomLevelEl = document.getElementById('zoom-level');
+
+// Gallery
+const templateGrid = document.getElementById('template-grid');
+const galleryGrid = document.getElementById('gallery-grid');
+const saveGalleryBtn = document.getElementById('save-gallery-btn');
+const clearGalleryBtn = document.getElementById('clear-gallery-btn');
+
 // ---------------------------------------------------------------
 //  History helpers
 // ---------------------------------------------------------------
@@ -1060,6 +1072,152 @@ symmetryMode.addEventListener('change', () => {
 });
 
 // ---------------------------------------------------------------
+//  Theme & Zoom
+// ---------------------------------------------------------------
+
+themeSelect.addEventListener('change', () => {
+    ThemeManager.applyTheme(themeSelect.value);
+});
+
+// Sync theme select with saved theme
+themeSelect.value = ThemeManager.getCurrentTheme();
+
+function updateZoomDisplay() {
+    zoomLevelEl.textContent = Math.round(ZoomManager.getZoomLevel() * 100) + '%';
+    const canvasWrapper = document.querySelector('.canvas-wrapper');
+    ZoomManager.applyZoom(canvasWrapper);
+}
+
+zoomInBtn.addEventListener('click', () => {
+    ZoomManager.zoomIn();
+    updateZoomDisplay();
+});
+
+zoomOutBtn.addEventListener('click', () => {
+    ZoomManager.zoomOut();
+    updateZoomDisplay();
+});
+
+// ---------------------------------------------------------------
+//  Gallery UI
+// ---------------------------------------------------------------
+
+function renderGallery() {
+    // Templates
+    templateGrid.innerHTML = '';
+    const templates = TemplateGallery.getTemplates();
+    templates.forEach(tmpl => {
+        const item = document.createElement('div');
+        item.className = 'gallery-item';
+
+        const thumb = document.createElement('canvas');
+        thumb.width = 64;
+        thumb.height = 64;
+        const ctx = thumb.getContext('2d');
+        const scale = 64 / tmpl.gridSize;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 64, 64);
+        tmpl.data.forEach((color, i) => {
+            if (!color) return;
+            const row = Math.floor(i / tmpl.gridSize);
+            const col = i % tmpl.gridSize;
+            ctx.fillStyle = color;
+            ctx.fillRect(col * scale, row * scale, Math.ceil(scale), Math.ceil(scale));
+        });
+
+        const name = document.createElement('div');
+        name.className = 'gallery-item-name';
+        name.textContent = tmpl.name;
+
+        item.appendChild(thumb);
+        item.appendChild(name);
+        item.addEventListener('click', () => loadTemplate(tmpl.name));
+        templateGrid.appendChild(item);
+    });
+
+    // User gallery
+    galleryGrid.innerHTML = '';
+    const items = TemplateGallery.getGalleryItems();
+    items.forEach(gi => {
+        const item = document.createElement('div');
+        item.className = 'gallery-item';
+
+        const img = document.createElement('img');
+        img.src = gi.thumbnail;
+
+        const name = document.createElement('div');
+        name.className = 'gallery-item-name';
+        name.textContent = gi.name;
+
+        item.appendChild(img);
+        item.appendChild(name);
+        item.addEventListener('click', () => {
+            state.gridSize = gi.gridSize;
+            gridSizeSelect.value = String(gi.gridSize);
+            state.layerManager = LayerManager.fromJSON(gi.data);
+            rebuildCanvasDOM();
+            state.historyManager.clear();
+            saveHistory();
+            renderCanvas();
+            renderLayerPanel();
+        });
+        galleryGrid.appendChild(item);
+    });
+}
+
+function loadTemplate(name) {
+    const result = TemplateGallery.applyTemplate(name);
+    if (!result) return;
+    state.gridSize = result.gridSize;
+    gridSizeSelect.value = String(result.gridSize);
+
+    state.layerManager = new LayerManager(result.gridSize * result.gridSize);
+    const activeLayer = state.layerManager.getActiveLayer();
+    activeLayer.data = result.layerData;
+
+    rebuildCanvasDOM();
+    state.historyManager.clear();
+    saveHistory();
+    renderCanvas();
+    renderLayerPanel();
+}
+
+function rebuildCanvasDOM() {
+    const size = state.gridSize;
+    const maxCanvasWidth = Math.min(560, window.innerWidth - 40);
+    const cellSize = Math.floor(maxCanvasWidth / size);
+    canvas.innerHTML = '';
+    canvas.style.gridTemplateColumns = `repeat(${size}, ${cellSize}px)`;
+    canvas.style.gridTemplateRows = `repeat(${size}, ${cellSize}px)`;
+    canvas.classList.toggle('show-grid', state.showGrid);
+    state.pixels = [];
+    for (let i = 0; i < size * size; i++) {
+        const pixel = document.createElement('div');
+        pixel.className = 'pixel';
+        pixel.dataset.index = i;
+        canvas.appendChild(pixel);
+        state.pixels.push(pixel);
+    }
+    state.selectionManager = new SelectionManager(size);
+}
+
+saveGalleryBtn.addEventListener('click', () => {
+    const name = prompt('작품 이름을 입력하세요:');
+    if (!name) return;
+    const composite = state.layerManager.getCompositeImage();
+    const thumbnail = TemplateGallery.generateThumbnail(composite, state.gridSize);
+    TemplateGallery.saveToGallery(name, state.gridSize, state.layerManager.toJSON());
+    renderGallery();
+});
+
+clearGalleryBtn.addEventListener('click', () => {
+    if (confirm('갤러리를 비우시겠습니까?')) {
+        TemplateGallery.clearGallery();
+        renderGallery();
+    }
+});
+
+// ---------------------------------------------------------------
 //  Init
 // ---------------------------------------------------------------
 
@@ -1072,3 +1230,4 @@ state.animationManager.setCurrentFrame(state.layerManager.toJSON());
 state.selectionManager = new SelectionManager(state.gridSize);
 renderTimeline();
 updateColorTools();
+renderGallery();

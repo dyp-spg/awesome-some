@@ -63,6 +63,25 @@
             </div>
 
             <div class="tool-group">
+                <label>테마</label>
+                <select id="theme-select">
+                    <option value="dark">다크</option>
+                    <option value="light">라이트</option>
+                    <option value="midnight">미드나잇</option>
+                    <option value="forest">포레스트</option>
+                </select>
+            </div>
+
+            <div class="tool-group">
+                <label>줌</label>
+                <div class="tool-buttons">
+                    <button id="zoom-out-btn" class="tool-btn" title="축소">−</button>
+                    <span id="zoom-level" class="zoom-label">100%</span>
+                    <button id="zoom-in-btn" class="tool-btn" title="확대">+</button>
+                </div>
+            </div>
+
+            <div class="tool-group">
                 <label>실행취소</label>
                 <div class="tool-buttons">
                     <button id="undo-btn" class="tool-btn" title="실행 취소 (Ctrl+Z)">↩</button>
@@ -134,6 +153,24 @@
             <button id="sel-flip-v" class="layer-action-btn" title="상하 반전">↕</button>
         </div>
 
+        <div class="gallery-panel" id="gallery-panel">
+            <div class="layer-panel-header">
+                <h3>템플릿 & 갤러리</h3>
+                <div class="layer-actions">
+                    <button id="save-gallery-btn" class="layer-action-btn" title="갤러리에 저장">💾</button>
+                    <button id="clear-gallery-btn" class="layer-action-btn" title="갤러리 비우기">🗑</button>
+                </div>
+            </div>
+            <div class="gallery-section">
+                <label class="fps-label">템플릿</label>
+                <div class="gallery-grid" id="template-grid"></div>
+            </div>
+            <div class="gallery-section">
+                <label class="fps-label">내 작품</label>
+                <div class="gallery-grid" id="gallery-grid"></div>
+            </div>
+        </div>
+
         <div class="layer-panel" id="layer-panel">
             <div class="layer-panel-header">
                 <h3>레이어</h3>
@@ -148,6 +185,7 @@
         </div>
     </div>
 
+    <script src="ui.js"></script>
     <script src="layers.js"></script>
     <script src="history.js"></script>
     <script src="tools.js"></script>
@@ -156,6 +194,8 @@
     <script src="symmetry.js"></script>
     <script src="animation.js"></script>
     <script src="filemanager.js"></script>
+    <script src="gallery.js"></script>
+    <script src="renderer.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
