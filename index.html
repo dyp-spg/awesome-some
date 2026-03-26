@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art Creator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <header>
+            <h1>Pixel Art Creator</h1>
+            <p class="subtitle">클릭하고 드래그해서 픽셀 아트를 그려보세요!</p>
+        </header>
+
+        <div class="toolbar">
+            <div class="tool-group">
+                <label>브러시 색상</label>
+                <input type="color" id="color-picker" value="#000000">
+                <div class="palette" id="palette"></div>
+            </div>
+
+            <div class="tool-group">
+                <label>도구</label>
+                <div class="tool-buttons">
+                    <button class="tool-btn active" data-tool="brush" title="브러시">&#9998;</button>
+                    <button class="tool-btn" data-tool="eraser" title="지우개">&#9003;</button>
+                    <button class="tool-btn" data-tool="fill" title="채우기">&#9681;</button>
+                </div>
+            </div>
+
+            <div class="tool-group">
+                <label>캔버스 크기</label>
+                <select id="grid-size">
+                    <option value="8">8 x 8</option>
+                    <option value="16" selected>16 x 16</option>
+                    <option value="32">32 x 32</option>
+                    <option value="48">48 x 48</option>
+                </select>
+            </div>
+
+            <div class="tool-group">
+                <label>격자선</label>
+                <button id="toggle-grid" class="tool-btn active" title="격자선 토글">&#9638;</button>
+            </div>
+
+            <div class="tool-group actions">
+                <button id="clear-btn" class="action-btn danger">초기화</button>
+                <button id="export-btn" class="action-btn primary">PNG 저장</button>
+            </div>
+        </div>
+
+        <div class="canvas-wrapper">
+            <div class="canvas" id="canvas"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
