@@ -1,0 +1,18 @@
+{
+    "name": "Pixel Art Creator",
+    "short_name": "PixelArt",
+    "description": "브라우저 기반 픽셀 아트 그리기 도구",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#1a1a2e",
+    "theme_color": "#e94560",
+    "icons": [
+        {
+            "src": "icon.svg",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["graphics", "design"]
+}

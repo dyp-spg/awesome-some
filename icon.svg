@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="64" fill="#1a1a2e"/>
+
+  <!-- Grid lines (subtle) -->
+  <g stroke="#2a2a4e" stroke-width="1" opacity="0.5">
+    <line x1="96" y1="64" x2="96" y2="448"/>
+    <line x1="160" y1="64" x2="160" y2="448"/>
+    <line x1="224" y1="64" x2="224" y2="448"/>
+    <line x1="288" y1="64" x2="288" y2="448"/>
+    <line x1="352" y1="64" x2="352" y2="448"/>
+    <line x1="416" y1="64" x2="416" y2="448"/>
+    <line x1="32" y1="128" x2="480" y2="128"/>
+    <line x1="32" y1="192" x2="480" y2="192"/>
+    <line x1="32" y1="256" x2="480" y2="256"/>
+    <line x1="32" y1="320" x2="480" y2="320"/>
+    <line x1="32" y1="384" x2="480" y2="384"/>
+  </g>
+
+  <!-- Pixel art pattern: a small heart shape -->
+  <!-- Row 1 -->
+  <rect x="96"  y="128" width="64" height="64" fill="#e94560"/>
+  <rect x="160" y="128" width="64" height="64" fill="#e94560"/>
+  <rect x="288" y="128" width="64" height="64" fill="#e94560"/>
+  <rect x="352" y="128" width="64" height="64" fill="#e94560"/>
+
+  <!-- Row 2 -->
+  <rect x="32"  y="192" width="64" height="64" fill="#e94560"/>
+  <rect x="96"  y="192" width="64" height="64" fill="#ff6b81"/>
+  <rect x="160" y="192" width="64" height="64" fill="#e94560"/>
+  <rect x="224" y="192" width="64" height="64" fill="#e94560"/>
+  <rect x="288" y="192" width="64" height="64" fill="#e94560"/>
+  <rect x="352" y="192" width="64" height="64" fill="#ff6b81"/>
+  <rect x="416" y="192" width="64" height="64" fill="#e94560"/>
+
+  <!-- Row 3 -->
+  <rect x="32"  y="256" width="64" height="64" fill="#e94560"/>
+  <rect x="96"  y="256" width="64" height="64" fill="#e94560"/>
+  <rect x="160" y="256" width="64" height="64" fill="#e94560"/>
+  <rect x="224" y="256" width="64" height="64" fill="#ff6b81"/>
+  <rect x="288" y="256" width="64" height="64" fill="#e94560"/>
+  <rect x="352" y="256" width="64" height="64" fill="#e94560"/>
+  <rect x="416" y="256" width="64" height="64" fill="#e94560"/>
+
+  <!-- Row 4 -->
+  <rect x="96"  y="320" width="64" height="64" fill="#e94560"/>
+  <rect x="160" y="320" width="64" height="64" fill="#e94560"/>
+  <rect x="224" y="320" width="64" height="64" fill="#e94560"/>
+  <rect x="288" y="320" width="64" height="64" fill="#e94560"/>
+  <rect x="352" y="320" width="64" height="64" fill="#e94560"/>
+
+  <!-- Row 5 -->
+  <rect x="160" y="384" width="64" height="64" fill="#e94560"/>
+  <rect x="224" y="384" width="64" height="64" fill="#ff6b81"/>
+  <rect x="288" y="384" width="64" height="64" fill="#e94560"/>
+
+  <!-- Pencil cursor accent -->
+  <rect x="384" y="64" width="48" height="48" fill="#0f3460" rx="4"/>
+  <rect x="392" y="72" width="32" height="32" fill="#e94560" rx="2"/>
+</svg>
