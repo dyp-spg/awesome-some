@@ -53,8 +53,22 @@
         <div class="canvas-wrapper">
             <div class="canvas" id="canvas"></div>
         </div>
+
+        <div class="layer-panel" id="layer-panel">
+            <div class="layer-panel-header">
+                <h3>레이어</h3>
+                <div class="layer-actions">
+                    <button id="add-layer-btn" class="layer-action-btn" title="레이어 추가">+</button>
+                    <button id="merge-layer-btn" class="layer-action-btn" title="아래로 병합">&#8615;</button>
+                    <button id="flatten-btn" class="layer-action-btn" title="모두 병합">&#9776;</button>
+                    <button id="delete-layer-btn" class="layer-action-btn" title="레이어 삭제">&#10005;</button>
+                </div>
+            </div>
+            <div class="layer-list" id="layer-list"></div>
+        </div>
     </div>
 
+    <script src="layers.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

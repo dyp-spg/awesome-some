@@ -212,6 +212,142 @@ select {
     z-index: 1;
 }
 
+/* Layer Panel */
+.layer-panel {
+    background: #16213e;
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 20px;
+    max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.layer-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.layer-panel-header h3 {
+    font-size: 0.9rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.layer-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.layer-action-btn {
+    width: 28px;
+    height: 28px;
+    border: 2px solid #333;
+    background: #0f3460;
+    color: #eee;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.layer-action-btn:hover {
+    background: #1a4a7a;
+}
+
+.layer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.layer-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #0f3460;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.layer-item.active {
+    border-color: #e94560;
+}
+
+.layer-item .layer-thumbnail {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background: #fff;
+    border: 1px solid #333;
+    flex-shrink: 0;
+}
+
+.layer-item .layer-visibility {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: none;
+    color: #eee;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.layer-item .layer-visibility.hidden {
+    color: #555;
+}
+
+.layer-item .layer-name {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #eee;
+    font-size: 0.85rem;
+    outline: none;
+    min-width: 0;
+}
+
+.layer-item .layer-opacity {
+    width: 60px;
+    height: 4px;
+    accent-color: #e94560;
+    flex-shrink: 0;
+}
+
+.layer-item .layer-lock {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: none;
+    color: #eee;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.layer-item .layer-lock.locked {
+    color: #e94560;
+}
+
 @media (max-width: 600px) {
     .toolbar {
         justify-content: center;
