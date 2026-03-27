@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pixel-art-v1';
+const CACHE_NAME = 'pixel-art-v2';
 
 const ASSETS_TO_CACHE = [
     './',

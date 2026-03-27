@@ -274,7 +274,7 @@ const TemplateGallery = (function () {
      *                                    (the caller is responsible for
      *                                    serialising however they see fit).
      */
-    function saveToGallery(name, gridSize, layerManagerJSON) {
+    function saveToGallery(name, gridSize, layerManagerJSON, thumbnail) {
         if (!name || typeof name !== 'string') {
             throw new Error('A name is required when saving to the gallery.');
         }
@@ -287,7 +287,7 @@ const TemplateGallery = (function () {
         var entry = {
             name: name,
             gridSize: gridSize,
-            thumbnail: null, // caller can set via generateThumbnail before saving
+            thumbnail: thumbnail || null,
             data: layerManagerJSON,
             timestamp: Date.now(),
         };

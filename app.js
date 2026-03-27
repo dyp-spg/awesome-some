@@ -22,6 +22,8 @@ const state = {
     shapeStart: null,
     shapePreview: [],
     selectStart: null,
+    useCanvasRenderer: false,
+    pixelRenderer: null,
 };
 
 // ---------------------------------------------------------------
@@ -81,6 +83,9 @@ const selFlipV = document.getElementById('sel-flip-v');
 
 // Symmetry
 const symmetryMode = document.getElementById('symmetry-mode');
+
+// Dither
+const ditherPattern = document.getElementById('dither-pattern');
 
 // Theme & Zoom
 const themeSelect = document.getElementById('theme-select');
@@ -185,21 +190,43 @@ function createCanvas() {
         state.pixels.push(pixel);
     }
 
+    // Reset selection manager for new grid size
+    state.selectionManager = new SelectionManager(size);
+
     state.historyManager.clear();
     saveHistory();
     renderCanvas();
     renderLayerPanel();
 }
 
+// ---------------------------------------------------------------
+//  PixelRenderer integration (optional Canvas API backend)
+// ---------------------------------------------------------------
+
+function initPixelRenderer() {
+    const wrapper = document.querySelector('.canvas-wrapper');
+    if (!wrapper) return;
+    state.pixelRenderer = new PixelRenderer(wrapper, state.gridSize);
+}
+
 function renderCanvas() {
     const lm = state.layerManager;
     if (!lm) return;
+
+    if (state.useCanvasRenderer && state.pixelRenderer) {
+        state.pixelRenderer.render(lm);
+        return;
+    }
     for (let i = 0; i < state.pixels.length; i++) {
         state.pixels[i].style.backgroundColor = lm.getCompositePixel(i);
     }
 }
 
 function renderPixel(index) {
+    if (state.useCanvasRenderer && state.pixelRenderer) {
+        state.pixelRenderer.renderPixel(index, state.layerManager.getCompositePixel(index));
+        return;
+    }
     state.pixels[index].style.backgroundColor = state.layerManager.getCompositePixel(index);
 }
 
@@ -294,6 +321,10 @@ function getSymmetryPoints(idx) {
         .filter(i => i >= 0);
 }
 
+function makePixelProxy(index) {
+    return { dataset: { index: String(index) }, classList: { contains: (c) => c === 'pixel' } };
+}
+
 function paint(pixel) {
     const lm = state.layerManager;
     const idx = parseInt(pixel.dataset.index);
@@ -308,6 +339,16 @@ function paint(pixel) {
         floodFill(idx);
         saveHistory();
         renderLayerPanel();
+    } else if (state.tool === 'dither') {
+        const coord = DrawingTools.indexToCoord(idx, state.gridSize);
+        if (coord) {
+            const pattern = ditherPattern ? ditherPattern.value : 'checkerboard';
+            const ditherPixels = DrawingTools.ditherBrush(coord.x, coord.y, state.gridSize, pattern, 1);
+            ditherPixels.forEach(({ x, y }) => {
+                const symPoints = getSymmetryPoints(DrawingTools.coordToIndex(x, y, state.gridSize));
+                symPoints.forEach(i => { lm.setPixel(i, state.color); renderPixel(i); });
+            });
+        }
     } else if (state.tool === 'eyedropper') {
         const sampledColor = DrawingTools.eyedropper(idx, lm);
         if (sampledColor) {
@@ -495,12 +536,18 @@ function exportAsPNG() {
 //  Event Listeners — Canvas (mouse)
 // ---------------------------------------------------------------
 
-function getPixelIndex(target) {
+function getPixelIndex(target, clientX, clientY) {
+    if (state.useCanvasRenderer && state.pixelRenderer) {
+        if (clientX !== undefined && clientY !== undefined) {
+            return state.pixelRenderer.getPixelAtPoint(clientX, clientY);
+        }
+        return -1;
+    }
     return target.classList.contains('pixel') ? parseInt(target.dataset.index) : -1;
 }
 
 canvas.addEventListener('mousedown', (e) => {
-    const idx = getPixelIndex(e.target);
+    const idx = getPixelIndex(e.target, e.clientX, e.clientY);
     if (idx < 0) return;
 
     if (state.tool === 'select') {
@@ -511,13 +558,14 @@ canvas.addEventListener('mousedown', (e) => {
         state.painting = true;
     } else {
         state.painting = true;
-        paint(e.target);
+        const target = state.useCanvasRenderer ? makePixelProxy(idx) : e.target;
+        paint(target);
     }
 });
 
 canvas.addEventListener('mousemove', (e) => {
     if (!state.painting) return;
-    const idx = getPixelIndex(e.target);
+    const idx = getPixelIndex(e.target, e.clientX, e.clientY);
     if (idx < 0) return;
 
     if (state.tool === 'select' && state.selectStart) {
@@ -529,7 +577,8 @@ canvas.addEventListener('mousemove', (e) => {
         const endCoord = DrawingTools.indexToCoord(idx, state.gridSize);
         showShapePreview(state.shapeStart, endCoord);
     } else if (state.tool !== 'fill' && state.tool !== 'eyedropper') {
-        paint(e.target);
+        const target = state.useCanvasRenderer ? makePixelProxy(idx) : e.target;
+        paint(target);
     }
 });
 
@@ -538,7 +587,9 @@ document.addEventListener('mouseup', (e) => {
 
     if (state.tool === 'select' && state.selectStart) {
         const target = document.elementFromPoint(e.clientX, e.clientY);
-        const idx = target ? getPixelIndex(target) : -1;
+        const idx = state.useCanvasRenderer
+            ? getPixelIndex(target, e.clientX, e.clientY)
+            : (target ? getPixelIndex(target) : -1);
         if (idx >= 0) {
             const endCoord = DrawingTools.indexToCoord(idx, state.gridSize);
             state.selectionManager.selectRect(state.selectStart.x, state.selectStart.y, endCoord.x, endCoord.y);
@@ -551,7 +602,9 @@ document.addEventListener('mouseup', (e) => {
 
     if (isShapeTool(state.tool) && state.shapeStart) {
         const target = document.elementFromPoint(e.clientX, e.clientY);
-        let idx = target ? getPixelIndex(target) : -1;
+        let idx = state.useCanvasRenderer
+            ? getPixelIndex(target, e.clientX, e.clientY)
+            : (target ? getPixelIndex(target) : -1);
         if (idx < 0) {
             // If released outside canvas, use last known position from preview
             clearShapePreview();
@@ -560,7 +613,7 @@ document.addEventListener('mouseup', (e) => {
             commitShape(state.shapeStart, endCoord);
         }
         state.shapeStart = null;
-    } else if (state.tool === 'brush' || state.tool === 'eraser') {
+    } else if (state.tool === 'brush' || state.tool === 'eraser' || state.tool === 'dither') {
         saveHistory();
         renderLayerPanel();
     }
@@ -577,7 +630,7 @@ canvas.addEventListener('touchstart', (e) => {
     const touch = e.touches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
     if (!target) return;
-    const idx = getPixelIndex(target);
+    const idx = getPixelIndex(target, touch.clientX, touch.clientY);
     if (idx < 0) return;
 
     if (isShapeTool(state.tool)) {
@@ -585,7 +638,8 @@ canvas.addEventListener('touchstart', (e) => {
         state.painting = true;
     } else {
         state.painting = true;
-        paint(target);
+        const paintTarget = state.useCanvasRenderer ? makePixelProxy(idx) : target;
+        paint(paintTarget);
     }
 });
 
@@ -595,14 +649,15 @@ canvas.addEventListener('touchmove', (e) => {
     const touch = e.touches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
     if (!target) return;
-    const idx = getPixelIndex(target);
+    const idx = getPixelIndex(target, touch.clientX, touch.clientY);
     if (idx < 0) return;
 
     if (isShapeTool(state.tool) && state.shapeStart) {
         const endCoord = DrawingTools.indexToCoord(idx, state.gridSize);
         showShapePreview(state.shapeStart, endCoord);
     } else if (state.tool !== 'fill' && state.tool !== 'eyedropper') {
-        paint(target);
+        const paintTarget = state.useCanvasRenderer ? makePixelProxy(idx) : target;
+        paint(paintTarget);
     }
 });
 
@@ -622,7 +677,7 @@ canvas.addEventListener('touchend', (e) => {
                 const touch = e.changedTouches[0];
                 const target = document.elementFromPoint(touch.clientX, touch.clientY);
                 if (target) {
-                    const idx = getPixelIndex(target);
+                    const idx = getPixelIndex(target, touch.clientX, touch.clientY);
                     if (idx >= 0) {
                         const endCoord = DrawingTools.indexToCoord(idx, state.gridSize);
                         commitShape(state.shapeStart, endCoord);
@@ -631,7 +686,7 @@ canvas.addEventListener('touchend', (e) => {
             }
         }
         state.shapeStart = null;
-    } else if (state.tool === 'brush' || state.tool === 'eraser') {
+    } else if (state.tool === 'brush' || state.tool === 'eraser' || state.tool === 'dither') {
         saveHistory();
         renderLayerPanel();
     }
@@ -656,7 +711,11 @@ toolButtons.forEach(btn => {
 
 gridSizeSelect.addEventListener('change', (e) => {
     state.gridSize = parseInt(e.target.value);
+    // Reset animation (frames are tied to grid size)
+    state.animationManager = new AnimationManager(state.gridSize);
     createCanvas();
+    state.animationManager.setCurrentFrame(state.layerManager.toJSON());
+    renderTimeline();
 });
 
 toggleGridBtn.addEventListener('click', () => {
@@ -700,6 +759,52 @@ document.addEventListener('keydown', (e) => {
     } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault();
         performRedo();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        e.preventDefault();
+        if (state.selectionManager && state.selectionManager.getSelectedIndices().length > 0) {
+            state.selectionManager.copy(state.layerManager);
+        }
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+        e.preventDefault();
+        if (state.selectionManager && state.selectionManager.getSelectedIndices().length > 0) {
+            state.selectionManager.cut(state.layerManager);
+            saveHistory();
+            renderCanvas();
+            renderLayerPanel();
+            updateSelectionVisuals();
+        }
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        e.preventDefault();
+        if (state.selectionManager) {
+            state.selectionManager.paste(state.layerManager, 0, 0);
+            saveHistory();
+            renderCanvas();
+            renderLayerPanel();
+        }
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        if (state.selectionManager) {
+            state.selectionManager.selectAll();
+            updateSelectionVisuals();
+        }
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (state.selectionManager && state.selectionManager.getSelectedIndices().length > 0) {
+            const lm = state.layerManager;
+            const activeLayer = lm.getActiveLayer();
+            if (activeLayer && !activeLayer.locked) {
+                state.selectionManager.getSelectedIndices().forEach(i => {
+                    activeLayer.data[i] = null;
+                });
+                saveHistory();
+                renderCanvas();
+                renderLayerPanel();
+            }
+        }
+    } else if (e.key === 'Escape') {
+        if (state.selectionManager) {
+            state.selectionManager.deselect();
+            updateSelectionVisuals();
+        }
     }
 });
 
@@ -1206,7 +1311,7 @@ saveGalleryBtn.addEventListener('click', () => {
     if (!name) return;
     const composite = state.layerManager.getCompositeImage();
     const thumbnail = TemplateGallery.generateThumbnail(composite, state.gridSize);
-    TemplateGallery.saveToGallery(name, state.gridSize, state.layerManager.toJSON());
+    TemplateGallery.saveToGallery(name, state.gridSize, state.layerManager.toJSON(), thumbnail);
     renderGallery();
 });
 
@@ -1215,6 +1320,53 @@ clearGalleryBtn.addEventListener('click', () => {
         TemplateGallery.clearGallery();
         renderGallery();
     }
+
+// ---------------------------------------------------------------
+//  Reference Image Overlay
+// ---------------------------------------------------------------
+
+const refImageBtn = document.getElementById('ref-image-btn');
+
+const REF_OPACITIES = [0.1, 0.2, 0.3, 0.5];
+
+refImageBtn.addEventListener('click', () => {
+    const existing = document.querySelector('.ref-image-overlay');
+    if (existing) {
+        const currentOpacity = parseFloat(existing.style.opacity || 0.3);
+        const idx = REF_OPACITIES.indexOf(currentOpacity);
+        const nextIdx = idx + 1;
+        if (nextIdx >= REF_OPACITIES.length) {
+            existing.remove();
+            return;
+        }
+        existing.style.opacity = REF_OPACITIES[nextIdx];
+        return;
+    }
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'ref-image-overlay';
+            overlay.style.opacity = REF_OPACITIES[0];
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            overlay.appendChild(img);
+            const wrapper = document.querySelector('.canvas-wrapper');
+            const old = wrapper.querySelector('.ref-image-overlay');
+            if (old) old.remove();
+            wrapper.appendChild(overlay);
+        };
+        reader.readAsDataURL(file);
+        fileInput.remove();
+    });
+    fileInput.click();
 });
 
 // ---------------------------------------------------------------

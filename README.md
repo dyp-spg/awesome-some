@@ -17,7 +17,9 @@ Create pixel art, animations, and sprite sheets directly in your browser with no
 - **Rectangle** (사각형) -- outline or filled rectangles
 - **Circle** (원) -- midpoint circle algorithm, outline or filled
 - **Eyedropper** (스포이드) -- sample the composite color from any pixel
+- **Dither** (디더링) -- pattern-based dithering (checkerboard, horizontal, vertical, diagonal, 25%, 75%)
 - **Shape fill toggle** -- switch between outline and filled shapes
+- **Reference image overlay** -- load an image as a semi-transparent guide for tracing
 
 ### Layer System / 레이어
 - Multi-layer support with add, delete, duplicate
@@ -101,6 +103,12 @@ Create pixel art, animations, and sprite sheets directly in your browser with no
 | `]` | Next frame / 다음 프레임 |
 | `Ctrl+Z` | Undo / 실행 취소 |
 | `Ctrl+Y` | Redo / 다시 실행 |
+| `Ctrl+C` | Copy selection / 선택 복사 |
+| `Ctrl+X` | Cut selection / 선택 잘라내기 |
+| `Ctrl+V` | Paste / 붙여넣기 |
+| `Ctrl+A` | Select all / 전체 선택 |
+| `Delete` | Delete selected pixels / 선택 영역 삭제 |
+| `Escape` | Deselect / 선택 해제 |
 
 ---
 

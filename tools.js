@@ -282,4 +282,85 @@ const DrawingTools = {
         }
         return layerManager.getCompositePixel(index);
     },
+
+    // -------------------------------------------------------------------
+    //  Dithering
+    // -------------------------------------------------------------------
+
+    /**
+     * Check if the pixel at (x, y) should be colored according to
+     * the given dithering pattern.
+     *
+     * @param {number} x        - Column.
+     * @param {number} y        - Row.
+     * @param {number} gridSize - Grid dimension (used for bounds check).
+     * @param {string} pattern  - One of 'checkerboard', 'horizontal',
+     *     'vertical', 'diagonal', '25percent', '75percent'.
+     * @returns {Array<{x: number, y: number}>} Single-element array if
+     *     the pixel should be colored, empty array otherwise.
+     */
+    dither(x, y, gridSize, pattern) {
+        if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) {
+            return [];
+        }
+
+        let fill = false;
+
+        switch (pattern) {
+            case 'checkerboard':
+                fill = (x + y) % 2 === 0;
+                break;
+            case 'horizontal':
+                fill = y % 2 === 0;
+                break;
+            case 'vertical':
+                fill = x % 2 === 0;
+                break;
+            case 'diagonal':
+                fill = (x - y) % 2 === 0;
+                break;
+            case '25percent':
+                fill = x % 2 === 0 && y % 2 === 0;
+                break;
+            case '75percent':
+                fill = !(x % 2 === 1 && y % 2 === 1);
+                break;
+            default:
+                fill = (x + y) % 2 === 0;
+                break;
+        }
+
+        return fill ? [{ x, y }] : [];
+    },
+
+    /**
+     * Apply dithering over a brush area centred at (x, y).
+     *
+     * For each pixel within the brush radius, the dithering pattern is
+     * evaluated and only matching pixels are returned.
+     *
+     * @param {number} x         - Centre column.
+     * @param {number} y         - Centre row.
+     * @param {number} gridSize  - Grid dimension (used for bounds check).
+     * @param {string} pattern   - Dithering pattern name.
+     * @param {number} brushSize - 1 = single pixel, 2 = 3x3, 3 = 5x5.
+     * @returns {Array<{x: number, y: number}>} Pixels that should be colored.
+     */
+    ditherBrush(x, y, gridSize, pattern, brushSize) {
+        const radius = brushSize - 1; // 1 → 0, 2 → 1, 3 → 2
+        const pixels = [];
+
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const px = x + dx;
+                const py = y + dy;
+                const result = DrawingTools.dither(px, py, gridSize, pattern);
+                if (result.length > 0) {
+                    pixels.push(result[0]);
+                }
+            }
+        }
+
+        return pixels;
+    },
 };

@@ -602,6 +602,80 @@ body {
     background: var(--panel-bg, #16213e);
 }
 
+.tool-btn, .layer-action-btn, select, .fps-input {
+    border-color: var(--border, #333);
+    background: var(--panel-bg, #0f3460);
+    color: var(--text, #eee);
+}
+
+.tool-btn.active {
+    border-color: var(--accent, #e94560);
+    background: var(--accent, #e94560);
+}
+
+.layer-item {
+    background: var(--panel-bg, #0f3460);
+}
+
+.layer-item.active, .frame-thumb.active, .frame-thumb:hover {
+    border-color: var(--accent, #e94560);
+}
+
+.action-btn.primary {
+    background: var(--panel-bg, #0f3460);
+    color: var(--text, #eee);
+}
+
+.action-btn.danger {
+    color: var(--accent, #e94560);
+}
+
+.layer-item .layer-opacity {
+    accent-color: var(--accent, #e94560);
+}
+
+.layer-item .layer-lock.locked {
+    color: var(--accent, #e94560);
+}
+
+input[type="color"] {
+    border-color: var(--border, #333);
+}
+
+.pixel:hover {
+    outline-color: var(--accent, rgba(233, 69, 96, 0.6));
+}
+
+.pixel.selected {
+    outline-color: var(--accent, rgba(233, 69, 96, 0.8));
+}
+
+.gallery-item canvas, .gallery-item img, .frame-thumb {
+    border-color: var(--border, #333);
+}
+
+.gallery-item:hover canvas, .gallery-item:hover img {
+    border-color: var(--accent, #e94560);
+}
+
+.ref-image-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0.3;
+    image-rendering: pixelated;
+    z-index: 3;
+}
+
+.ref-image-overlay img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
 @media (max-width: 600px) {
     .toolbar {
         justify-content: center;

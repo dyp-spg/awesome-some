@@ -34,6 +34,7 @@
                     <button class="tool-btn" data-tool="circle" title="원">◯</button>
                     <button class="tool-btn" data-tool="eyedropper" title="스포이드">💉</button>
                     <button class="tool-btn" data-tool="select" title="선택">⬚</button>
+                    <button class="tool-btn" data-tool="dither" title="디더링">▦</button>
                 </div>
             </div>
 
@@ -47,6 +48,18 @@
                     <option value="radial4">회전 4</option>
                     <option value="radial6">회전 6</option>
                     <option value="radial8">회전 8</option>
+                </select>
+            </div>
+
+            <div class="tool-group">
+                <label>디더링</label>
+                <select id="dither-pattern">
+                    <option value="checkerboard">체커보드</option>
+                    <option value="horizontal">수평</option>
+                    <option value="vertical">수직</option>
+                    <option value="diagonal">대각선</option>
+                    <option value="25percent">25%</option>
+                    <option value="75percent">75%</option>
                 </select>
             </div>
 
@@ -98,6 +111,7 @@
             </div>
 
             <div class="tool-group actions">
+                <button id="ref-image-btn" class="action-btn primary">참조 이미지</button>
                 <button id="clear-btn" class="action-btn danger">초기화</button>
                 <button id="save-btn" class="action-btn primary">프로젝트 저장</button>
                 <button id="load-btn" class="action-btn primary">불러오기</button>
